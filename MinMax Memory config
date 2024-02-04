@@ -1,0 +1,36 @@
+
+
+/*
+Description:
+this setting Changes the min and max memory configuration to the right number
+Modified BY: henok
+*/
+
+USE [master]
+GO
+DECLARE @cpuCount INT, @currentMaxDOP INT, @newMaxDOP INT, @currentCostThreshold INT, @newCostThreshold INT;
+SELECT @cpuCount = cpu_count FROM sys.dm_os_sys_info;
+SELECT @currentMaxDOP = CONVERT(INT, [value]) FROM sys.configurations WHERE [name] = N'max degree of parallelism';
+SELECT @currentCostThreshold = CONVERT(INT, [value]) FROM sys.configurations WHERE [name] = N'cost threshold for parallelism';
+
+DECLARE @total_physical_memory_MB int, @max_server_memory_MB int, @min_server_memory_MB int
+SELECT	@total_physical_memory_MB = total_physical_memory_kb/1024 from sys.dm_os_sys_memory 
+SELECT  @max_server_memory_MB = CASE 
+			WHEN @total_physical_memory_MB > 60000 THEN @total_physical_memory_MB * 0.9
+            WHEN @total_physical_memory_MB BETWEEN 8000 AND 15000 THEN @total_physical_memory_MB - 4096
+			ELSE @total_physical_memory_MB * 0.85 End,
+		@min_server_memory_MB = 2000
+
+
+EXEC sp_configure 'show advanced options', 1;
+RECONFIGURE;
+
+DECLARE @mystr varchar(max)
+SET		@mystr = 'exec sp_configure ''max server memory (MB)'', ' + LTRIM(STR(@max_server_memory_MB))
+--SELECT	@mystr
+EXEC	(@mystr)
+
+SET		@mystr = 'exec sp_configure ''min server memory (MB)'', ' + LTRIM(STR(@min_server_memory_MB))
+--SELECT	@mystr
+EXEC	(@mystr)
+
